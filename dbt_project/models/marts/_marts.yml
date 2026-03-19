@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: dim_breed
+    description: Breed dimension with size classification and temperament array
+    columns:
+      - name: breed_id
+        tests:
+          - unique
+          - not_null
+      - name: breed_name
+        tests:
+          - not_null
+      - name: size_class
+        tests:
+          - accepted_values:
+              values: ['Small', 'Medium', 'Large', 'Giant', 'Unknown']
+
+  - name: fact_weight_life_span
+    description: Fact table with numeric breed metrics
+    columns:
+      - name: breed_id
+        tests:
+          - unique
+          - not_null

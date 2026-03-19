@@ -1,0 +1,21 @@
+version: 2
+
+sources:
+  - name: bronze
+    database: dog-breed-explorer-am
+    schema: bronze
+    tables:
+      - name: dog_api_raw
+        description: Raw Dog API breed data loaded by dlt
+
+models:
+  - name: stg_dog_breeds
+    description: Cleaned and typed dog breed records
+    columns:
+      - name: breed_id
+        tests:
+          - unique
+          - not_null
+      - name: breed_name
+        tests:
+          - not_null

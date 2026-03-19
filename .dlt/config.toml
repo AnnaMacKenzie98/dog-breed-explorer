@@ -1,0 +1,9 @@
+[runtime]
+log_level = "INFO"
+dlthub_telemetry = false
+
+[sources.dog_api]
+base_url = "https://api.thedogapi.com/v1"
+
+[destination.bigquery]
+location = "EU"

@@ -1,0 +1,20 @@
+dog_breed_explorer:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: oauth
+      project: dog-breed-explorer-am
+      dataset: dev
+      threads: 4
+      timeout_seconds: 300
+      location: EU
+
+    prod:
+      type: bigquery
+      method: oauth
+      project: dog-breed-explorer-am
+      dataset: prod
+      threads: 4
+      timeout_seconds: 300
+      location: EU
