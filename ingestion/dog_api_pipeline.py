@@ -92,8 +92,8 @@ def run():
     pipeline, source = create_dlt_pipeline()
     load_info = pipeline.run(source)
 
-    print(f"dlt load complete!")
-    print(f"{load_info}")
+    print("dlt load complete!")
+    print(load_info)
 
     with pipeline.sql_client() as client:
         result = client.execute_sql("SELECT COUNT(*) FROM dog_api_raw")
