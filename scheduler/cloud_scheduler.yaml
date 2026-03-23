@@ -1,0 +1,18 @@
+# Cloud Scheduler job definition for daily Dog API ingestion
+# Deploy with: gcloud scheduler jobs create http dog-breed-daily-ingest --cli-input-yaml=scheduler/cloud_scheduler.yaml
+
+name: projects/dog-breed-explorer-am/locations/europe-west1/jobs/dog-breed-daily-ingest
+description: "Triggers the dog-breed-ingest Cloud Run Job daily at 02:00 UTC"
+schedule: "0 2 * * *"
+timeZone: "UTC"
+httpTarget:
+  uri: "https://europe-west1-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/dog-breed-explorer-am/jobs/dog-breed-ingest:run"
+  httpMethod: POST
+  oauthToken:
+    serviceAccountEmail: "dog-pipeline-sa@dog-breed-explorer-am.iam.gserviceaccount.com"
+retryConfig:
+  retryCount: 3
+  maxRetryDuration: "600s"
+  minBackoffDuration: "30s"
+  maxBackoffDuration: "300s"
+  maxDoublings: 3
