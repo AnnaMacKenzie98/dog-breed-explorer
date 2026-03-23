@@ -19,22 +19,40 @@ enriched as (
         split(temperament, ', ') as temperament_array,
         life_span_min,
         life_span_max,
-        round((coalesce(life_span_min, 0) + coalesce(life_span_max, 0)) / 2.0, 1) as avg_life_span_years,
+        case
+            when life_span_min is not null and life_span_max is not null
+                then round((life_span_min + life_span_max) / 2.0, 1)
+            else round(coalesce(life_span_min, life_span_max), 1)
+        end as avg_life_span_years,
         weight_kg_min,
         weight_kg_max,
-        round((coalesce(weight_kg_min, 0) + coalesce(weight_kg_max, 0)) / 2.0, 1) as avg_weight_kg,
+        case
+            when weight_kg_min is not null and weight_kg_max is not null
+                then round((weight_kg_min + weight_kg_max) / 2.0, 1)
+            else round(coalesce(weight_kg_min, weight_kg_max), 1)
+        end as avg_weight_kg,
         height_cm_min,
         height_cm_max,
-        round((coalesce(height_cm_min, 0) + coalesce(height_cm_max, 0)) / 2.0, 1) as avg_height_cm,
         case
-            when (coalesce(weight_kg_min, 0) + coalesce(weight_kg_max, 0)) / 2.0 <= 10 then 'Small'
-            when (coalesce(weight_kg_min, 0) + coalesce(weight_kg_max, 0)) / 2.0 <= 25 then 'Medium'
-            when (coalesce(weight_kg_min, 0) + coalesce(weight_kg_max, 0)) / 2.0 <= 45 then 'Large'
-            when (coalesce(weight_kg_min, 0) + coalesce(weight_kg_max, 0)) / 2.0 > 45 then 'Giant'
-            else 'Unknown'
-        end as size_class,
+            when height_cm_min is not null and height_cm_max is not null
+                then round((height_cm_min + height_cm_max) / 2.0, 1)
+            else round(coalesce(height_cm_min, height_cm_max), 1)
+        end as avg_height_cm,
         reference_image_id
     from staged
+),
+
+with_size_class as (
+    select
+        *,
+        case
+            when avg_weight_kg is null  then 'Unknown'
+            when avg_weight_kg <= 10    then 'Small'
+            when avg_weight_kg <= 25    then 'Medium'
+            when avg_weight_kg <= 45    then 'Large'
+            else 'Giant'
+        end as size_class
+    from enriched
 )
 
-select * from enriched
+select * from with_size_class

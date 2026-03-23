@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s \"https://api.thedogapi.com/v1/breeds?limit=1&page=0\")"
+    ]
+  }
+}
