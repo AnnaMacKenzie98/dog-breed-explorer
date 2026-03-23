@@ -52,10 +52,14 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT }}
-      - run: |
-          gcloud builds submit ingestion/ \
-            --tag gcr.io/$GCP_PROJECT/dog-pipeline:${{ github.sha }} \
-            --tag gcr.io/$GCP_PROJECT/dog-pipeline:latest
+      - run: gcloud auth configure-docker gcr.io --quiet
+      - uses: docker/build-push-action@v5
+        with:
+          context: ingestion
+          push: true
+          tags: |
+            gcr.io/${{ secrets.GCP_PROJECT }}/dog-pipeline:${{ github.sha }}
+            gcr.io/${{ secrets.GCP_PROJECT }}/dog-pipeline:latest
       - run: |
           gcloud run jobs update dog-breed-ingest \
             --image gcr.io/$GCP_PROJECT/dog-pipeline:${{ github.sha }} \
