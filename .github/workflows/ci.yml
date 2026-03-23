@@ -53,20 +53,9 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT }}
       - run: |
-          BUILD_ID=$(gcloud builds submit ingestion/ \
+          gcloud builds submit ingestion/ \
             --tag gcr.io/$GCP_PROJECT/dog-pipeline:${{ github.sha }} \
-            --tag gcr.io/$GCP_PROJECT/dog-pipeline:latest \
-            --async --format='value(id)')
-          echo "Build submitted: $BUILD_ID"
-          while true; do
-            STATUS=$(gcloud builds describe $BUILD_ID --format='value(status)')
-            echo "Status: $STATUS"
-            case $STATUS in
-              SUCCESS) exit 0 ;;
-              FAILURE|CANCELLED|TIMEOUT|EXPIRED) exit 1 ;;
-            esac
-            sleep 10
-          done
+            --tag gcr.io/$GCP_PROJECT/dog-pipeline:latest
       - run: |
           gcloud run jobs update dog-breed-ingest \
             --image gcr.io/$GCP_PROJECT/dog-pipeline:${{ github.sha }} \
