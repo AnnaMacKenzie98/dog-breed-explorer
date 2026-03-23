@@ -1,17 +1,84 @@
-@"
+
+
+```
 # Dog Breed Explorer
 
-An end-to-end data pipeline on GCP that ingests dog breed data from The Dog API, models it with dbt, and serves analytics through Looker Studio.
+An end-to-end GCP data pipeline that ingests dog breed data from [The Dog API](https://thedogapi.com), models it with dbt, and serves analytics through Looker Studio.
 
 ![CI/CD](https://github.com/AnnaMacKenzie98/dog-breed-explorer/actions/workflows/ci.yml/badge.svg)
 
+---
+
 ## Architecture
 
-Dog API -> dlt (Cloud Run) -> GCS (raw JSON) -> BigQuery (bronze) -> dbt (silver/gold) -> Looker Studio
+```
+┌──────────────┐     ┌───────────────────┐     ┌──────────────────┐
+│  Dog API     │────▶│  dlt Pipeline     │────▶│  Cloud Storage   │
+│  /v1/breeds  │     │  (Cloud Run Job)  │     │  (raw JSON)      │
+└──────────────┘     └───────┬───────────┘     └──────────────────┘
+                             │
+                             ▼
+                     ┌───────────────────┐
+                     │  BigQuery         │
+                     │  bronze.dog_api_raw│
+                     └───────┬───────────┘
+                             │  dbt
+                     ┌───────┴───────────┐
+                     │                   │
+              ┌──────▼──────┐    ┌───────▼──────────────┐
+              │  Silver     │    │  Gold                 │
+              │  stg_dog_   │───▶│  dim_breed            │
+              │  breeds     │    │  fact_weight_life_span│
+              └─────────────┘    └───────┬──────────────┘
+                                         │
+                                  ┌──────▼──────┐
+                                  │ Looker      │
+                                  │ Studio      │
+                                  └─────────────┘
+
+Orchestration: Cloud Scheduler (daily 02:00 UTC) → Cloud Run Job
+CI/CD: GitHub Actions (lint → dbt test → deploy on merge to main)
+```
+
+---
 
 ## Dashboard
 
 [View the live dashboard](https://lookerstudio.google.com/u/0/reporting/494020bd-53f5-4f87-853c-2fb15184c4bc/page/aShsF)
+
+The Looker Studio dashboard connects to the BigQuery gold layer and answers:
+
+1. **Which breeds have the longest predicted life span?** — Bar chart of top breeds by `avg_life_span_years`, coloured by `size_class`.
+2. **Distribution of breeds by weight class** — Pie/donut chart of breed counts by `size_class` (Small, Medium, Large, Giant).
+3. **Top temperaments among family-friendly breeds** — Horizontal bar chart of the most common temperament traits filtered to breeds tagged "Friendly", "Gentle", or "Loyal".
+
+---
+
+## GCP Project
+
+| Item | Value |
+|------|-------|
+| **Project ID** | `dog-breed-explorer-am` |
+| **Region** | `europe-west1` |
+| **Raw storage bucket** | `dog-breed-explorer-am-raw` |
+| **BigQuery location** | `EU` |
+
+### Service Accounts
+
+| Account | Role | Purpose |
+|---------|------|---------|
+| `dog-pipeline-sa@dog-breed-explorer-am.iam.gserviceaccount.com` | BigQuery Data Editor, Storage Object Admin, Cloud Run Invoker | Pipeline execution (least-privilege) |
+
+### APIs Enabled
+
+- BigQuery API
+- Cloud Storage API
+- Cloud Run API
+- Cloud Scheduler API
+- Cloud Build API
+- Container Registry API
+
+---
 
 ## Tech Stack
 
@@ -24,24 +91,155 @@ Dog API -> dlt (Cloud Run) -> GCS (raw JSON) -> BigQuery (bronze) -> dbt (silver
 | CI/CD | GitHub Actions |
 | Visualisation | Looker Studio |
 
+---
+
+## Bootstrap Steps
+
+### 1. GCP Project Setup
+
+```bash
+# Create project and enable billing
+gcloud projects create dog-breed-explorer-am
+gcloud config set project dog-breed-explorer-am
+
+# Enable required APIs
+gcloud services enable \
+  bigquery.googleapis.com \
+  storage.googleapis.com \
+  run.googleapis.com \
+  cloudscheduler.googleapis.com \
+  cloudbuild.googleapis.com \
+  containerregistry.googleapis.com
+
+# Create service account with least-privilege roles
+gcloud iam service-accounts create dog-pipeline-sa \
+  --display-name="Dog Pipeline Service Account"
+
+for ROLE in roles/bigquery.dataEditor roles/storage.objectAdmin roles/run.invoker; do
+  gcloud projects add-iam-policy-binding dog-breed-explorer-am \
+    --member="serviceAccount:dog-pipeline-sa@dog-breed-explorer-am.iam.gserviceaccount.com" \
+    --role="$ROLE"
+done
+
+# Create raw storage bucket
+gsutil mb -l EU gs://dog-breed-explorer-am-raw
+
+# Create BigQuery datasets
+bq mk --location=EU bronze
+bq mk --location=EU silver
+bq mk --location=EU gold
+```
+
+### 2. Local Development
+
+```bash
+git clone https://github.com/AnnaMacKenzie98/dog-breed-explorer.git
+cd dog-breed-explorer
+python -m venv venv
+source venv/bin/activate  # or .\venv\Scripts\Activate on Windows
+pip install -r ingestion/requirements.txt
+pip install dbt-bigquery>=1.7.0
+
+# Configure dlt secrets
+cp .dlt/secrets.toml.example .dlt/secrets.toml
+# Edit .dlt/secrets.toml with your GCP credentials and API key
+
+export GOOGLE_APPLICATION_CREDENTIALS=credentials.json
+python ingestion/dog_api_pipeline.py
+cd dbt_project && dbt deps && dbt run && dbt test
+```
+
+### 3. Deploy to Cloud Run
+
+```bash
+gcloud builds submit ingestion/ \
+  --tag gcr.io/dog-breed-explorer-am/dog-pipeline:latest
+
+gcloud run jobs create dog-breed-ingest \
+  --image gcr.io/dog-breed-explorer-am/dog-pipeline:latest \
+  --region europe-west1 \
+  --set-env-vars DOG_API_KEY=$DOG_API_KEY \
+  --service-account dog-pipeline-sa@dog-breed-explorer-am.iam.gserviceaccount.com
+```
+
+---
+
+## Cloud Scheduler (Daily 02:00 UTC)
+
+```bash
+gcloud scheduler jobs create http dog-breed-daily-ingest \
+  --location=europe-west1 \
+  --schedule="0 2 * * *" \
+  --uri="https://europe-west1-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/dog-breed-explorer-am/jobs/dog-breed-ingest:run" \
+  --http-method=POST \
+  --oauth-service-account-email=dog-pipeline-sa@dog-breed-explorer-am.iam.gserviceaccount.com
+```
+
+See also: `scheduler/cloud_scheduler.yaml` for the declarative config.
+
+---
+
 ## Data Model (Medallion Architecture)
 
-| Layer | Table | Description |
-|-------|-------|-------------|
-| Bronze | bronze.dog_api_raw | Raw JSON from API, loaded by dlt |
-| Silver | silver.stg_dog_breeds | Typed, cleaned, NULLs handled |
-| Gold | gold.dim_breed | Breed dimension with size class |
-| Gold | gold.fact_weight_life_span | Numeric metrics for analysis |
+| Layer | Table | Materialization | Description |
+|-------|-------|-----------------|-------------|
+| **Bronze** | `bronze.dog_api_raw` | Table (dlt managed) | Raw JSON payload from Dog API |
+| **Silver** | `silver.stg_dog_breeds` | View | Typed, cleaned, null-handled records |
+| **Gold** | `gold.dim_breed` | Table | Breed dimension with size class, temperament array |
+| **Gold** | `gold.fact_weight_life_span` | Table | Numeric metrics: weight, height, life span ranges |
+
+### Key Transformations
+
+- **`stg_dog_breeds`**: Casts IDs to INT64, parses range strings (e.g. `"10 - 15"`) into min/max floats using a custom `parse_range` macro, fills nulls with defaults.
+- **`dim_breed`**: Computes `avg_life_span_years`, `avg_weight_kg`, `avg_height_cm`, splits temperament into an array, classifies breeds by size (Small ≤10kg, Medium ≤25kg, Large ≤45kg, Giant >45kg).
+- **`fact_weight_life_span`**: Adds range calculations and a `has_complete_metrics` boolean flag. Filters to breeds with at least one positive metric.
+
+### dbt Docs
+
+```bash
+cd dbt_project
+dbt docs generate
+dbt docs serve
+```
+
+---
 
 ## Data Quality
 
 10 automated dbt tests:
-- unique + not_null on breed_id across all layers
-- not_null on breed_name
-- accepted_values on size_class (Small, Medium, Large, Giant, Unknown)
-- Custom singular test: assert_life_span_positive
 
-## Findings (300 words)
+| Test | Model | Type |
+|------|-------|------|
+| `unique` + `not_null` on `breed_id` | stg_dog_breeds | Schema |
+| `not_null` on `breed_name` | stg_dog_breeds | Schema |
+| `unique` + `not_null` on `breed_id` | dim_breed | Schema |
+| `not_null` on `breed_name` | dim_breed | Schema |
+| `accepted_values` on `size_class` | dim_breed | Schema |
+| `unique` + `not_null` on `breed_id` | fact_weight_life_span | Schema |
+| `assert_life_span_positive` | fact_weight_life_span | Custom |
+
+---
+
+## CI/CD Pipeline
+
+**Workflow:** `.github/workflows/ci.yml`
+
+| Trigger | Job | Actions |
+|---------|-----|---------|
+| PR to `main` | `lint-and-test` | Lint Python with ruff, `dbt run --target dev`, `dbt test --target dev` |
+| Push to `main` | `deploy-prod` | Build Docker image → push to GCR → update Cloud Run Job → `dbt run --target prod` → `dbt test --target prod` |
+
+### Required GitHub Secrets
+
+| Secret | Description |
+|--------|-------------|
+| `GCP_PROJECT` | GCP project ID |
+| `GCP_SA_KEY` | Service account JSON key |
+| `DOG_API_KEY` | The Dog API key |
+
+---
+
+## Findings (≤300 words)
 
 Our analysis of 169 dog breeds reveals that weight is the strongest predictor of life span. Small breeds live approximately 3.4 years longer than giant breeds on average (13.5 vs 10.1 years). Toy and Terrier groups dominate the longevity charts, with several breeds exceeding 15-year average spans.
 
@@ -49,9 +247,17 @@ The most popular family-friendly temperaments (Loyal, Friendly) correlate with s
 
 Weight is more predictive than breed group alone. A pet insurance company could use this curated layer to price policies by weight class rather than breed name, identify long-lived small breeds for targeted marketing, and flag data quality gaps to prioritise which breeds need manual enrichment.
 
-67% of breeds lack complete weight, height, and life span data, suggesting the free API tier has significant gaps that would need enrichment for production use. Our has_complete_metrics flag in the fact table makes this transparent to downstream consumers.
+67% of breeds lack complete weight, height, and life span data, suggesting the free API tier has significant gaps that would need enrichment for production use. Our `has_complete_metrics` flag in the fact table makes this transparent to downstream consumers.
+
+**Business applications:**
+
+- **Pet insurance pricing:** Insurers could use weight class as a primary rating factor rather than breed names, simplifying underwriting while maintaining actuarial accuracy. A Small-breed policy could be priced 15–20% lower than a Giant-breed policy.
+- **Breed recommendation engines:** Pet adoption platforms could match families with breeds that fit their lifestyle and longevity expectations.
+- **Veterinary planning:** Clinics can personalise wellness programmes — earlier screening for large/giant breeds, extended preventive care for smaller breeds expected to live 13+ years.
 
 These findings are based on the free tier of The Dog API. Production use should validate against veterinary databases such as OFA or AKC registration data.
+
+---
 
 ## Trade-offs
 
@@ -61,17 +267,5 @@ These findings are based on the free tier of The Dog API. Production use should 
 | dbt Core vs dbt Cloud | Free, full control; no GUI | Evaluate dbt Cloud for team use |
 | replace write disposition | Re-loads all data each run | Switch to merge if API supports incremental |
 | OAuth for dbt, SA key for dlt | Two auth methods | Unify with Workload Identity Federation |
+```
 
-## Running Locally
-``````
-git clone https://github.com/AnnaMacKenzie98/dog-breed-explorer.git
-cd dog-breed-explorer
-python -m venv venv
-source venv/bin/activate  # or .\venv\Scripts\Activate on Windows
-pip install -r ingestion/requirements.txt
-pip install dbt-bigquery>=1.7.0
-export GOOGLE_APPLICATION_CREDENTIALS=credentials.json
-python ingestion/dog_api_pipeline.py
-cd dbt_project && dbt deps && dbt run && dbt test
-``````
-"@ | Out-File -Encoding utf8 README.md
