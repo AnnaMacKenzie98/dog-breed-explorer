@@ -1,0 +1,4 @@
+project_id      = "dog-breed-explorer-am"
+region          = "europe-west1"
+bq_location     = "EU"
+raw_bucket_name = "dog-breed-explorer-am-raw"

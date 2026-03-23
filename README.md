@@ -1,6 +1,3 @@
-
-
-```
 # Dog Breed Explorer
 
 An end-to-end GCP data pipeline that ingests dog breed data from [The Dog API](https://thedogapi.com), models it with dbt, and serves analytics through Looker Studio.
@@ -38,6 +35,7 @@ An end-to-end GCP data pipeline that ingests dog breed data from [The Dog API](h
 
 Orchestration: Cloud Scheduler (daily 02:00 UTC) → Cloud Run Job
 CI/CD: GitHub Actions (lint → dbt test → deploy on merge to main)
+IaC: Terraform (BigQuery datasets, GCS bucket, service account, Scheduler)
 ```
 
 ---
@@ -88,6 +86,7 @@ The Looker Studio dashboard connects to the BigQuery gold layer and answers:
 | Storage | Cloud Storage (raw JSON) + BigQuery |
 | Orchestration | Cloud Scheduler (daily 02:00 UTC) |
 | Transformation | dbt Core targeting BigQuery |
+| IaC | Terraform |
 | CI/CD | GitHub Actions |
 | Visualisation | Looker Studio |
 
@@ -95,14 +94,25 @@ The Looker Studio dashboard connects to the BigQuery gold layer and answers:
 
 ## Bootstrap Steps
 
-### 1. GCP Project Setup
+### 1. Provision Infrastructure with Terraform
+
+All GCP resources (BigQuery datasets, GCS bucket, service account, Cloud Scheduler job) are defined in `terraform/`.
 
 ```bash
-# Create project and enable billing
-gcloud projects create dog-breed-explorer-am
-gcloud config set project dog-breed-explorer-am
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars if your project ID or region differ from the defaults
+terraform init
+terraform plan
+terraform apply
+```
 
-# Enable required APIs
+### 2. Enable GCP APIs
+
+Terraform does not enable APIs — run this once manually:
+
+```bash
+gcloud config set project dog-breed-explorer-am
 gcloud services enable \
   bigquery.googleapis.com \
   storage.googleapis.com \
@@ -110,27 +120,9 @@ gcloud services enable \
   cloudscheduler.googleapis.com \
   cloudbuild.googleapis.com \
   containerregistry.googleapis.com
-
-# Create service account with least-privilege roles
-gcloud iam service-accounts create dog-pipeline-sa \
-  --display-name="Dog Pipeline Service Account"
-
-for ROLE in roles/bigquery.dataEditor roles/storage.objectAdmin roles/run.invoker; do
-  gcloud projects add-iam-policy-binding dog-breed-explorer-am \
-    --member="serviceAccount:dog-pipeline-sa@dog-breed-explorer-am.iam.gserviceaccount.com" \
-    --role="$ROLE"
-done
-
-# Create raw storage bucket
-gsutil mb -l EU gs://dog-breed-explorer-am-raw
-
-# Create BigQuery datasets
-bq mk --location=EU bronze
-bq mk --location=EU silver
-bq mk --location=EU gold
 ```
 
-### 2. Local Development
+### 3. Local Development
 
 ```bash
 git clone https://github.com/AnnaMacKenzie98/dog-breed-explorer.git
@@ -149,7 +141,7 @@ python ingestion/dog_api_pipeline.py
 cd dbt_project && dbt deps && dbt run && dbt test
 ```
 
-### 3. Deploy to Cloud Run
+### 4. Deploy to Cloud Run
 
 ```bash
 gcloud builds submit ingestion/ \
@@ -166,7 +158,10 @@ gcloud run jobs create dog-breed-ingest \
 
 ## Cloud Scheduler (Daily 02:00 UTC)
 
+Provisioned by Terraform. See `scheduler/cloud_scheduler.yaml` for the declarative config.
+
 ```bash
+# To create manually if not using Terraform:
 gcloud scheduler jobs create http dog-breed-daily-ingest \
   --location=europe-west1 \
   --schedule="0 2 * * *" \
@@ -174,8 +169,6 @@ gcloud scheduler jobs create http dog-breed-daily-ingest \
   --http-method=POST \
   --oauth-service-account-email=dog-pipeline-sa@dog-breed-explorer-am.iam.gserviceaccount.com
 ```
-
-See also: `scheduler/cloud_scheduler.yaml` for the declarative config.
 
 ---
 
@@ -267,5 +260,4 @@ These findings are based on the free tier of The Dog API. Production use should 
 | dbt Core vs dbt Cloud | Free, full control; no GUI | Evaluate dbt Cloud for team use |
 | replace write disposition | Re-loads all data each run | Switch to merge if API supports incremental |
 | OAuth for dbt, SA key for dlt | Two auth methods | Unify with Workload Identity Federation |
-```
-
+| Terraform for core IaC | Cloud Run Job not in Terraform (requires image to exist first) | Add Cloud Run job resource after first image push |
