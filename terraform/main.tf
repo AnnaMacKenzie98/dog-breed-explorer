@@ -53,7 +53,15 @@ locals {
   pipeline_roles = [
     "roles/bigquery.dataEditor",
     "roles/storage.objectAdmin",
+    "roles/storage.admin",
     "roles/run.invoker",
+    "roles/run.developer",
+    "roles/cloudbuild.builds.editor",
+    "roles/iam.serviceAccountUser",
+    "roles/serviceusage.serviceUsageConsumer",
+    "roles/logging.viewer",
+    "roles/viewer",
+    "roles/artifactregistry.writer",
   ]
 }
 
