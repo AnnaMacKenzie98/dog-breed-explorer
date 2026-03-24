@@ -4,6 +4,8 @@ An end-to-end GCP data pipeline that ingests dog breed data from [The Dog API](h
 
 ![CI/CD](https://github.com/AnnaMacKenzie98/dog-breed-explorer/actions/workflows/ci.yml/badge.svg)
 
+**[dbt Docs →](https://annamackenzie98.github.io/dog-breed-explorer/)**
+
 ---
 
 ## Architecture
