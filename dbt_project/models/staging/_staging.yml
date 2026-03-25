@@ -2,7 +2,6 @@ version: 2
 
 sources:
   - name: bronze
-    database: dog-breed-explorer-am
     schema: bronze
     tables:
       - name: dog_api_raw
