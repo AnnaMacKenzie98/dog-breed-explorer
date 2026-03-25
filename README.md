@@ -46,16 +46,7 @@ IaC: Terraform (BigQuery datasets, GCS bucket, service account, Scheduler)
 
 [View the live dashboard](https://lookerstudio.google.com/u/0/reporting/494020bd-53f5-4f87-853c-2fb15184c4bc/page/aShsF)
 
-### Findings & Business Impact
-
-The Dog Breed Explorer dashboard is designed with a practical use case in mind: helping prospective dog owners find a breed that matches their lifestyle. Rather than presenting raw statistics, the dashboard is structured around the decisions a buyer actually makes — size preference, temperament priorities, and longevity expectations.
-
-The dashboard opens with an overview of breeds grouped by size category (Small, Medium, Large, Giant), giving the user an immediate sense of the distribution across the breed population. From there, interactive filters allow the user to select a size class and a temperament attribute they care most about — such as "Loyal", "Gentle", or "Energetic" — and the dashboard narrows to matching breeds ranked by average lifespan.
-
-One of the clearest insights to emerge from the data is the **inverse relationship between weight and lifespan**: heavier breeds consistently live shorter lives. Giant breeds average significantly fewer years than small breeds, a pattern that holds across temperament categories. This is a well-known phenomenon in veterinary science, and the data bears it out cleanly — making it a useful, evidence-backed data point for buyers weighing up a large versus small dog.
-
-The business value here extends beyond individual buyers. A pet retailer, insurer, or veterinary practice could use this layer to segment customers by breed profile, tailor product recommendations, or price insurance premiums more accurately. The pipeline refreshes daily, so the analytics layer stays current as the Dog API is updated with new breeds or revised data.
-
+The dashboard lets users explore 169+ dog breeds by size class, temperament, and lifespan — with interactive filters to narrow breeds by lifestyle fit.
 ---
 
 ## GCP Project
