@@ -6,15 +6,46 @@ sources:
     tables:
       - name: dog_api_raw
         description: Raw Dog API breed data loaded by dlt
+        config:
+          freshness:
+            warn_after: {count: 48, period: hour}
+            error_after: {count: 72, period: hour}
+          loaded_at_field: _dlt_load_id::timestamp
 
 models:
   - name: stg_dog_breeds
     description: Cleaned and typed dog breed records
     columns:
       - name: breed_id
+        description: Unique numeric identifier for the breed from The Dog API
         tests:
           - unique
           - not_null
       - name: breed_name
+        description: Official breed name (e.g. Labrador Retriever)
         tests:
           - not_null
+      - name: breed_group
+        description: "AKC breed group classification (e.g. Sporting, Hound). Defaults to 'Unknown' when not provided."
+      - name: origin
+        description: "Country or region of breed origin. Defaults to 'Unknown' when not provided."
+      - name: temperament
+        description: Comma-separated list of temperament traits (e.g. Loyal, Friendly, Energetic)
+      - name: life_span_min
+        description: Lower bound of the breed's typical life span in years, parsed from range string
+      - name: life_span_max
+        description: Upper bound of the breed's typical life span in years, parsed from range string
+      - name: weight_kg_min
+        description: Lower bound of adult weight in kilograms, parsed from metric range string
+      - name: weight_kg_max
+        description: Upper bound of adult weight in kilograms, parsed from metric range string
+      - name: height_cm_min
+        description: Lower bound of adult height in centimetres, parsed from metric range string
+      - name: height_cm_max
+        description: Upper bound of adult height in centimetres, parsed from metric range string
+      - name: reference_image_id
+        description: Identifier for the breed's reference image on The Dog API CDN
+      - name: load_id
+        description: dlt load identifier — tracks which pipeline run ingested this row
+      - name: dlt_row_id
+        description: dlt-generated unique row identifier
