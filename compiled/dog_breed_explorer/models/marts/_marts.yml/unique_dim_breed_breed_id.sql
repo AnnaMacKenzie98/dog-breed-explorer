@@ -1,0 +1,21 @@
+
+    
+    
+
+with dbt_test__target as (
+
+  select breed_id as unique_field
+  from `dog-breed-explorer-am`.`gold`.`dim_breed`
+  where breed_id is not null
+
+)
+
+select
+    unique_field,
+    count(*) as n_records
+
+from dbt_test__target
+group by unique_field
+having count(*) > 1
+
+
