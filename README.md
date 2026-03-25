@@ -182,7 +182,7 @@ gcloud scheduler jobs create http dog-breed-daily-ingest \
 
 - **`stg_dog_breeds`**: Casts IDs to INT64, parses range strings (e.g. `"10 - 15"`) into min/max floats using a custom `parse_range` macro, fills nulls with defaults.
 - **`dim_breed`**: Computes `avg_life_span_years`, `avg_weight_kg`, `avg_height_cm`, splits temperament into an array, classifies breeds by size (Small ≤10kg, Medium ≤25kg, Large ≤45kg, Giant >45kg).
-- **`fact_weight_life_span`**: Adds range calculations and a `has_complete_metrics` boolean flag. Filters to breeds with at least one positive metric.
+- **`fact_weight_life_span`**: Computes averages, range spreads, and a `has_complete_metrics` boolean flag. Sources from staging independently of `dim_breed`. Filters to breeds with at least one metric.
 
 ### dbt Docs
 
@@ -196,7 +196,7 @@ dbt docs serve
 
 ## Data Quality
 
-10 automated dbt tests:
+15 automated dbt tests:
 
 | Test | Model | Type |
 |------|-------|------|
@@ -206,7 +206,14 @@ dbt docs serve
 | `not_null` on `breed_name` | dim_breed | Schema |
 | `accepted_values` on `size_class` | dim_breed | Schema |
 | `unique` + `not_null` on `breed_id` | fact_weight_life_span | Schema |
+| `not_null` on `avg_life_span_years` (conditional) | fact_weight_life_span | Schema |
+| `accepted_values` on `has_complete_metrics` | fact_weight_life_span | Schema |
 | `assert_life_span_positive` | fact_weight_life_span | Custom |
+| `assert_minimum_breed_count` (≥100 rows) | stg_dog_breeds | Custom |
+| `assert_weight_in_valid_range` (0.5–120 kg) | fact_weight_life_span | Custom |
+| `assert_life_span_in_valid_range` (3–25 yrs) | fact_weight_life_span | Custom |
+
+Source freshness monitoring is configured on `bronze.dog_api_raw` — warns after 48 hours, errors after 72 hours.
 
 ---
 
