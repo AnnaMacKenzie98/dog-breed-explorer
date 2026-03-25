@@ -207,7 +207,7 @@ dbt docs serve
 | `accepted_values` on `size_class` | dim_breed | Schema |
 | `unique` + `not_null` on `breed_id` | fact_weight_life_span | Schema |
 | `not_null` on `avg_life_span_years` (conditional) | fact_weight_life_span | Schema |
-| `accepted_values` on `has_complete_metrics` | fact_weight_life_span | Schema |
+| `not_null` on `has_complete_metrics` | fact_weight_life_span | Schema |
 | `assert_life_span_positive` | fact_weight_life_span | Custom |
 | `assert_minimum_breed_count` (≥100 rows) | stg_dog_breeds | Custom |
 | `assert_weight_in_valid_range` (0.5–120 kg) | fact_weight_life_span | Custom |
