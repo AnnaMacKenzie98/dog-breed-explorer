@@ -14,7 +14,8 @@ models:
       - name: size_class
         tests:
           - accepted_values:
-              values: ['Small', 'Medium', 'Large', 'Giant', 'Unknown']
+              arguments:
+                values: ['Small', 'Medium', 'Large', 'Giant', 'Unknown']
 
   - name: fact_weight_life_span
     description: Fact table with numeric breed metrics
