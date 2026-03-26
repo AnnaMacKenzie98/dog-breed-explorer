@@ -17,6 +17,8 @@ GCS_BUCKET = os.getenv("GCS_BUCKET")
 GCP_PROJECT = os.getenv("GCP_PROJECT")
 # BigQuery dataset (the "bronze" layer) where raw data lands
 BQ_DATASET = os.getenv("BQ_DATASET", "bronze")
+# BigQuery location must match where the dataset was created
+BQ_LOCATION = os.getenv("BQ_LOCATION", "EU")
 
 # Fail fast if required environment variables are not set
 if not GCS_BUCKET:
@@ -79,7 +81,7 @@ def create_dlt_pipeline():
     # Create the dlt pipeline that writes to BigQuery
     pipeline = dlt.pipeline(
         pipeline_name="dog_breed_explorer",
-        destination="bigquery",
+        destination=dlt.destinations.bigquery(location=BQ_LOCATION),
         dataset_name=BQ_DATASET,  # writes into the "bronze" dataset
     )
 
