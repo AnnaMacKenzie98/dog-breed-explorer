@@ -64,7 +64,7 @@ jobs:
           gcloud run jobs update dog-breed-ingest \
             --image gcr.io/$GCP_PROJECT/dog-pipeline:${{ github.sha }} \
             --region $GCP_REGION \
-            --set-env-vars DOG_API_KEY=${{ secrets.DOG_API_KEY }}
+            --set-env-vars DOG_API_KEY=${{ secrets.DOG_API_KEY }},GCS_BUCKET=dog-breed-explorer-am-raw,GCP_PROJECT=$GCP_PROJECT
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
